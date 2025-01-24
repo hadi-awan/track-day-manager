@@ -31,6 +31,10 @@ public class SessionService {
         return sessionRepository.save(session);
     }
 
+    public List<Session> getAllSessions() {
+        return sessionRepository.findAll();
+    }
+
     public List<Session> getUserSessions(Long userId) {
         return sessionRepository.findByUserId(userId);
     }
@@ -38,5 +42,17 @@ public class SessionService {
     public Session getSessionById(Long id) {
         return sessionRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Session not found"));
+    }
+
+    public Session updateSession(Long id, Session session) {
+        Session existingSession = getSessionById(id);
+        existingSession.setStartTime(session.getStartTime());
+        existingSession.setEndTime(session.getEndTime());
+        existingSession.setStatus(session.getStatus());
+        return sessionRepository.save(existingSession);
+    }
+
+    public void deleteSession(Long id) {
+        sessionRepository.deleteById(id);
     }
 }
