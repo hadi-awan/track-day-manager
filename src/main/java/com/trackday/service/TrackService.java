@@ -23,5 +23,22 @@ public class TrackService {
     public List<Track> getAllTracks() {
         return trackRepository.findAll();
     }
+
+    public Track getTrackById(Long id) {
+        return trackRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Track not found"));
+    }
+
+    public Track updateTrack(Long id, Track track) {
+        Track existingTrack = getTrackById(id);
+        existingTrack.setName(track.getName());
+        existingTrack.setLatitude(track.getLatitude());
+        existingTrack.setLongitude(track.getLongitude());
+        return trackRepository.save(existingTrack);
+    }
+
+    public void deleteTrack(Long id) {
+        trackRepository.deleteById(id);
+    }
 }
 

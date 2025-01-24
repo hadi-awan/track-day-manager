@@ -18,6 +18,11 @@ public class SessionController {
         this.sessionService = sessionService;
     }
 
+    @PostMapping
+    public ResponseEntity<?> createSession(@RequestBody Session session) {
+        return ResponseEntity.ok(sessionService.startSession(session));
+    }
+
     @PostMapping("/start")
     public ResponseEntity<Session> startSession(@RequestBody Session session) {
         return ResponseEntity.ok(sessionService.startSession(session));
@@ -31,5 +36,10 @@ public class SessionController {
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Session>> getUserSessions(@PathVariable Long userId) {
         return ResponseEntity.ok(sessionService.getUserSessions(userId));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Session> getSessionById(@PathVariable Long id) {
+        return ResponseEntity.ok(sessionService.getSessionById(id));
     }
 }

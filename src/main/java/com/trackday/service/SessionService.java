@@ -34,4 +34,9 @@ public class SessionService {
     public List<Session> getUserSessions(Long userId) {
         return sessionRepository.findByUserId(userId);
     }
+
+    public Session getSessionById(Long id) {
+        return sessionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Session not found"));
+    }
 }

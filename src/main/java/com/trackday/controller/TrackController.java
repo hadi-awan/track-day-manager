@@ -27,4 +27,20 @@ public class TrackController {
     public ResponseEntity<List<Track>> getAllTracks() {
         return ResponseEntity.ok(trackService.getAllTracks());
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<Track> getTrackById(@PathVariable Long id) {
+        return ResponseEntity.ok(trackService.getTrackById(id));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Track> updateTrack(@PathVariable Long id, @RequestBody Track track) {
+        return ResponseEntity.ok(trackService.updateTrack(id, track));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTrack(@PathVariable Long id) {
+        trackService.deleteTrack(id);
+        return ResponseEntity.noContent().build();
+    }
 }
