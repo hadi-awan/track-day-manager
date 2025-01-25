@@ -13,13 +13,14 @@ import com.trackday.service.LapService;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Controller
 public class LocationWebSocketController {
     private final LocationDataService locationDataService;
     private final LapService lapService;
-    private Map<Long, LocationData> lastLocations = new HashMap<>();
+    private final Map<Long, LocationData> lastLocations = new HashMap<>();
 
     private static final double START_LINE_RADIUS = 0.0001; // ~10 meters radius
 
@@ -37,22 +38,36 @@ public class LocationWebSocketController {
 
     @MessageMapping
     @SendTo("/topic/location")
-    public LocationData trackLocation(LocationData locationData) {
+    public Map<String, Object> trackLocation(LocationData locationData) {
         LocationData saved = locationDataService.recordLocation(locationData);
-        checkLapCompletion(saved);
-        lastLocations.put(locationData.getSession().getId(), saved);
-        return saved;
+        Lap currentLap = checkLapCompletion(saved);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("location", saved);
+        if (currentLap != null) {
+            response.put("lapData", createLapData(currentLap));
+        }
+        return response;
     }
 
-    private void checkLapCompletion(LocationData location) {
+    private Map<String, Object> createLapData(Lap lap) {
+        Map<String, Object> lapData = new HashMap<>();
+        lapData.put("lapNumber", lap.getLapNumber());
+        lapData.put("lapTimeMillis", lap.getLapTimeMillis());
+        lapData.put("avgSpeed", calculateAverageSpeed(lap));
+        return lapData;
+    }
+
+    private Lap checkLapCompletion(LocationData location) {
         Long sessionId = location.getSession().getId();
         LocationData lastLocation = lastLocations.get(sessionId);
 
         if (lastLocation != null &&
                 !isNearStartLine(lastLocation) &&
                 isNearStartLine(location)) {
-            createNewLap(location.getSession());
+            return createNewLap(location.getSession());
         }
+        return null;
     }
 
     private boolean isNearStartLine(LocationData location) {
@@ -84,11 +99,21 @@ public class LocationWebSocketController {
         return R * c * 1000; // Convert to meters
     }
 
-    private void createNewLap(Session session) {
+    private Lap createNewLap(Session session) {
         Lap lap = new Lap();
         lap.setSession(session);
         lap.setStartTime(LocalDateTime.now());
         lap.setStatus("IN_PROGRESS");
         lapService.createLap(lap);
+        return lap;
+    }
+
+    private double calculateAverageSpeed(Lap lap) {
+        List<LocationData> lapLocations = locationDataService
+                .getLocationsBetweenTimestamps(lap.getStartTime(), lap.getEndTime());
+        return lapLocations.stream()
+                .mapToDouble(LocationData::getSpeed)
+                .average()
+                .orElse(0.0);
     }
 }

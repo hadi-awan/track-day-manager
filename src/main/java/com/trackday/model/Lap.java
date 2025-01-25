@@ -19,6 +19,7 @@ public class Lap {
     private LocalDateTime endTime;
     private Long lapTimeMillis;
     private String status; // "IN_PROGRESS", "COMPLETED"
+    private int lapNumber;
 
     // Default constructor
     public Lap() {}
@@ -52,5 +53,11 @@ public class Lap {
     }
     public String getStatus() {
         return status;
+    }
+    public int getLapNumber() {
+        return lapNumber;
+    }
+    public void setLapNumber(int lapNumber) {
+        this.lapNumber = lapNumber;
     }
 }

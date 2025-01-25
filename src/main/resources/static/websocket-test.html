@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="">
 <head>
   <title>Track Day Manager</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
@@ -24,6 +24,19 @@
     <canvas id="speedChart"></canvas>
   </div>
 </div>
+<div class="card">
+  <h2>Lap Times</h2>
+  <table id="lap-times">
+    <thead>
+    <tr>
+      <th>Lap</th>
+      <th>Time</th>
+      <th>Avg Speed</th>
+    </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
 <script>
   let speedChart;
   let tracking = false;
@@ -37,11 +50,11 @@
   stompClient.connect({}, function(frame) {
     console.log('Connected: ' + frame);
     stompClient.subscribe('/topic/location', function(response) {
-      const location = JSON.parse(response.body);
-      if (location.newLap) {
-        currentLap++;
-        document.getElementById('current-lap').textContent = currentLap;
-        addLapMarker();
+      const data = JSON.parse(response.body);
+      updateSpeed(data.location.speed);
+
+      if (data.lapData) {
+        updateLapTimes(data.lapData);
       }
       updateSpeed(location.speed);
     });
@@ -156,6 +169,20 @@
     speedChart.data.datasets[0].data.push(null);
     speedChart.data.labels.push(time);
     speedChart.update();
+  }
+
+  function updateLapTimes(lapData) {
+    const tbody = document.getElementById('lap-times').getElementsByTagName('tbody')[0];
+    const row = tbody.insertRow();
+    row.insertCell(0).textContent = lapData.lapNumber;
+    row.insertCell(1).textContent = formatTime(lapData.lapTimeMillis);
+    row.insertCell(2).textContent = `${lapData.avgSpeed.toFixed(1)} km/h`;
+  }
+
+  function formatTime(millis) {
+    const minutes = Math.floor(millis / 60000);
+    const seconds = ((millis % 60000) / 1000).toFixed(3);
+    return `${minutes}:${seconds.padStart(6, '0')}`;
   }
 
   initChart();

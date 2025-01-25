@@ -55,4 +55,13 @@ public class SessionService {
     public void deleteSession(Long id) {
         sessionRepository.deleteById(id);
     }
+
+    public Long getCurrentSessionId() {
+        // Replace `1L` with logic to get the currently logged-in user's ID (e.g., via Spring Security)
+        Long currentUserId = 1L;
+
+        return sessionRepository.findByUserIdAndStatus(currentUserId, "ACTIVE")
+                .map(Session::getId)
+                .orElseThrow(() -> new RuntimeException("No active session found for the user"));
+    }
 }
