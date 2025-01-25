@@ -1,40 +1,151 @@
 <!DOCTYPE html>
-<html lang="">
+<html>
 <head>
-  <title>Location WebSocket Test</title>
+  <title>Track Day Manager</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .card { border: 1px solid #ccc; padding: 15px; }
+  </style>
 </head>
 <body>
-<h1>Location WebSocket Test</h1>
-<button onclick="sendLocation()">Send Test Location</button>
-<div id="status"></div>
-<div id="location-updates"></div>
+<div class="grid">
+  <div class="card">
+    <h2>Current Session</h2>
+    <div>Speed: <span id="current-speed">0</span> km/h</div>
+    <div>Lap: <span id="current-lap">0</span></div>
+    <button onclick="startTracking()">Start Tracking</button>
+    <button onclick="stopTracking()">Stop Tracking</button>
+  </div>
+  <div class="card">
+    <h2>Speed Chart</h2>
+    <canvas id="speedChart"></canvas>
+  </div>
+</div>
 <script>
   const socket = new SockJS('http://localhost:8080/ws');
   const stompClient = Stomp.over(socket);
 
-  stompClient.connect({}, function() {
-    document.getElementById('status').innerHTML = 'Connected to WebSocket';
+  stompClient.connect({}, function(frame) {
+    console.log('Connected: ' + frame);
     stompClient.subscribe('/topic/location', function(response) {
       const location = JSON.parse(response.body);
-      document.getElementById('location-updates').innerHTML +=
-              `<p>New location: ${location.latitude}, ${location.longitude}, Speed: ${location.speed}</p>`;
+      console.log('Location update:', location);
     });
-  }, function(error) {
-    document.getElementById('status').innerHTML = 'Error connecting: ' + error;
   });
 
-  function sendLocation() {
-    const testLocation = {
-      session: { id: 1 },
-      timestamp: new Date().toISOString(),
-      latitude: 50,
-      longitude: 90,
-      speed: 60.5
-    };
-    stompClient.send("/app/location", {}, JSON.stringify(testLocation));
+  let speedChart;
+  let tracking = false;
+  let watchId;
+  let lastPosition = null;
+
+  function initChart() {
+    const ctx = document.getElementById('speedChart').getContext('2d');
+    speedChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Speed',
+          data: [],
+          borderColor: 'rgb(75, 192, 192)',
+          tension: 0.1
+        }]
+      }
+    });
   }
+
+  function startTracking() {
+    if (!tracking && navigator.geolocation) {
+      tracking = true;
+      watchId = navigator.geolocation.watchPosition(
+              position => {
+                const speed = calculateSpeed(position);
+                const locationData = {
+                  session: { id: 1 },
+                  timestamp: new Date().toISOString(),
+                  latitude: position.coords.latitude,
+                  longitude: position.coords.longitude,
+                  speed: speed
+                };
+                stompClient.send("/app/track", {}, JSON.stringify(locationData));
+                updateSpeed(speed);
+              },
+              error => console.error('Error:', error),
+              {
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 5000
+              }
+      );
+    }
+  }
+
+  function stopTracking() {
+    if (tracking) {
+      navigator.geolocation.clearWatch(watchId);
+      tracking = false;
+    }
+  }
+
+  function updateSpeed(speed) {
+    document.getElementById('current-speed').textContent = speed.toFixed(1);
+    updateChart(speed);
+  }
+
+  function updateChart(speed) {
+    const time = new Date().toLocaleTimeString();
+    speedChart.data.labels.push(time);
+    speedChart.data.datasets[0].data.push(speed);
+
+    if (speedChart.data.labels.length > 20) {
+      speedChart.data.labels.shift();
+      speedChart.data.datasets[0].data.shift();
+    }
+
+    speedChart.update();
+  }
+
+  function calculateSpeed(position) {
+    if (!lastPosition) {
+      lastPosition = position;
+      return 0;
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371000; // Earth's radius in meters
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function toRad(degrees) {
+      return degrees * (Math.PI/180);
+    }
+
+    const distance = calculateDistance(
+            lastPosition.coords.latitude,
+            lastPosition.coords.longitude,
+            position.coords.latitude,
+            position.coords.longitude
+    );
+
+    const timeInSeconds = (position.timestamp - lastPosition.timestamp) / 1000;
+    const speedKmH = (distance / timeInSeconds) * 3.6; // Convert m/s to km/h
+
+    lastPosition = position;
+    return speedKmH;
+  }
+
+  initChart();
 </script>
 </body>
 </html>
