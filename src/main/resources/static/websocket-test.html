@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="">
+<head>
+  <title>Location WebSocket Test</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+</head>
+<body>
+<h1>Location WebSocket Test</h1>
+<button onclick="sendLocation()">Send Test Location</button>
+<div id="status"></div>
+<div id="location-updates"></div>
+<script>
+  const socket = new SockJS('http://localhost:8080/ws');
+  const stompClient = Stomp.over(socket);
+
+  stompClient.connect({}, function() {
+    document.getElementById('status').innerHTML = 'Connected to WebSocket';
+    stompClient.subscribe('/topic/location', function(response) {
+      const location = JSON.parse(response.body);
+      document.getElementById('location-updates').innerHTML +=
+              `<p>New location: ${location.latitude}, ${location.longitude}, Speed: ${location.speed}</p>`;
+    });
+  }, function(error) {
+    document.getElementById('status').innerHTML = 'Error connecting: ' + error;
+  });
+
+  function sendLocation() {
+    const testLocation = {
+      session: { id: 1 },
+      timestamp: new Date().toISOString(),
+      latitude: 50,
+      longitude: 90,
+      speed: 60.5
+    };
+    stompClient.send("/app/location", {}, JSON.stringify(testLocation));
+  }
+</script>
+</body>
+</html>
