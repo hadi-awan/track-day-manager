@@ -25,6 +25,12 @@
   </div>
 </div>
 <script>
+  let speedChart;
+  let tracking = false;
+  let watchId;
+  let lastPosition = null;
+  let currentLap = 0;
+
   const socket = new SockJS('http://localhost:8080/ws');
   const stompClient = Stomp.over(socket);
 
@@ -32,14 +38,14 @@
     console.log('Connected: ' + frame);
     stompClient.subscribe('/topic/location', function(response) {
       const location = JSON.parse(response.body);
-      console.log('Location update:', location);
+      if (location.newLap) {
+        currentLap++;
+        document.getElementById('current-lap').textContent = currentLap;
+        addLapMarker();
+      }
+      updateSpeed(location.speed);
     });
   });
-
-  let speedChart;
-  let tracking = false;
-  let watchId;
-  let lastPosition = null;
 
   function initChart() {
     const ctx = document.getElementById('speedChart').getContext('2d');
@@ -108,27 +114,27 @@
     speedChart.update();
   }
 
+  function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371000; // Earth's radius in meters
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  function toRad(degrees) {
+    return degrees * (Math.PI/180);
+  }
+
   function calculateSpeed(position) {
     if (!lastPosition) {
       lastPosition = position;
       return 0;
-    }
-
-    function calculateDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371000; // Earth's radius in meters
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c;
-    }
-
-    function toRad(degrees) {
-      return degrees * (Math.PI/180);
     }
 
     const distance = calculateDistance(
@@ -143,6 +149,13 @@
 
     lastPosition = position;
     return speedKmH;
+  }
+
+  function addLapMarker() {
+    const time = new Date().toLocaleTimeString();
+    speedChart.data.datasets[0].data.push(null);
+    speedChart.data.labels.push(time);
+    speedChart.update();
   }
 
   initChart();

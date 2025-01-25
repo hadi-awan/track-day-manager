@@ -12,11 +12,14 @@ import org.springframework.stereotype.Controller;
 import com.trackday.service.LapService;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Controller
 public class LocationWebSocketController {
     private final LocationDataService locationDataService;
     private final LapService lapService;
+    private Map<Long, LocationData> lastLocations = new HashMap<>();
 
     private static final double START_LINE_RADIUS = 0.0001; // ~10 meters radius
 
@@ -37,12 +40,17 @@ public class LocationWebSocketController {
     public LocationData trackLocation(LocationData locationData) {
         LocationData saved = locationDataService.recordLocation(locationData);
         checkLapCompletion(saved);
+        lastLocations.put(locationData.getSession().getId(), saved);
         return saved;
     }
 
     private void checkLapCompletion(LocationData location) {
-        if (isNearStartLine(location)) {
-            // Create new lap
+        Long sessionId = location.getSession().getId();
+        LocationData lastLocation = lastLocations.get(sessionId);
+
+        if (lastLocation != null &&
+                !isNearStartLine(lastLocation) &&
+                isNearStartLine(location)) {
             createNewLap(location.getSession());
         }
     }
