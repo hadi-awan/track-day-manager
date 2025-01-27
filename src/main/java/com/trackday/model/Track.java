@@ -12,6 +12,9 @@ public class Track {
     private Double latitude;
     private Double longitude;
 
+    @Column(columnDefinition = "jsonb")
+    private String boundaryCoordinates;
+
     public Track() {}
 
     // Getters
